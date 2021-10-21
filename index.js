@@ -1,3 +1,4 @@
+require("dotenv").config();
 const mysql = require("mysql");
 const { Telegraf } = require("telegraf");
 const schedule = require("node-schedule");
@@ -11,13 +12,13 @@ var logtofile = fs.createWriteStream('log/last.txt', {
   })
 
 
-const bot = new Telegraf("1853734725:AAHj8axkT2f-Rwb4rfMHxgCiNmZs3qc1AXA");
-const db = mysql.createPool({
-    connectionLimit: 100,
-    host: "eu-cdbr-west-01.cleardb.com",
-    user: "b06b0541b7e493",
-    database: "heroku_86ab67cfa8e3c06",
-    password: "66c4e8ee",
+const bot = new Telegraf(process.env.TG_TOKEN);
+
+const db = mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
   });
 
   bot.command("getid", (ctx) => {
