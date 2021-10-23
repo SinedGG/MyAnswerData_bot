@@ -105,6 +105,12 @@ bot.on("text", (ctx) => {
               if (
                 err.message.includes("400: Bad Request: can't parse entities")
               ) {
+
+                var res_message = "";
+        for (let i = 0; i < results.length; i++) {
+          res_message += `Питання: \n${results[i].question}  \n\nВідповідь: \n${results[i].rightanswer.replace(";", "\n")} \n\n`
+        }
+
                 ctx.reply(`Результати пошуку : 🔍\n${res_message}`);
               }
               
