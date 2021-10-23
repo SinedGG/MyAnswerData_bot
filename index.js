@@ -68,13 +68,9 @@ bot.command("stats", (ctx) => {
 bot.on("text", (ctx) => {
   db.query("UPDATE other SET value = value + 1 WHERE id  = 1");
   db.query("UPDATE other SET value = value + 1 WHERE id  = 2");
-  /*
-    bot.telegram.getChat(ctx.message.chat.id).then(chat => {
-        var log_content =  " Id - " + chat.id + "; Username - " + chat.username + "; Name - "+ chat.first_name+ "; Запит - "+ ctx.message.text+".\n";
-        console.log(moment().hour()+"."+ moment().minute()+"."+moment().second()+"   "+moment().date()+"/"+moment().month()+"/"+moment().weekYear() + log_content)
-        logtofile.write(moment().hour()+"."+ moment().minute()+"."+moment().second()+"   "+moment().date()+"/"+moment().month()+"/"+moment().weekYear() + log_content)
-    })
-    */
+
+  logger('Request', `Id - ${ctx.chat.id} Username - ${ctx.chat.username} Запит - ${ctx.message.text}` )
+
   db.query(
     `SELECT * FROM main WHERE question like '%${ctx.message.text}%'`,
     function (err, results) {
@@ -83,7 +79,7 @@ bot.on("text", (ctx) => {
       } else {
         var res_message = "";
         for (let i = 0; i < results.length; i++) {
-          res_message += `Питання: \n <i> ${results[i].question} </i> \n\nВідповідь: \n <b> ${results[i].rightanswer.replace(";", ";\n")} </b> \n\n`
+          res_message += `Питання: \n<i>${results[i].question} </i> \n\nВідповідь: \n<b>${results[i].rightanswer.replace(";", "\n")} </b> \n\n`
         }
 
         if (results.length > 0) {
@@ -95,7 +91,7 @@ bot.on("text", (ctx) => {
           bot.telegram
             .sendMessage(
               ctx.chat.id,
-              `Результати пошуку : 🔍\n ${res_message}`,
+              `Результати пошуку : 🔍\n${res_message}`,
               options
             )
             .catch((err) => {
