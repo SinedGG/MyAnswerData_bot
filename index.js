@@ -83,7 +83,7 @@ bot.on('text', (ctx) => {
                 disable_notification: true
               };
     
-            bot.telegram.sendMessage(ctx.chat.id,"Результати пошуку : 🔍\n"+ res_message, option).catch(err =>{  console.log(err)
+            bot.telegram.sendMessage(ctx.chat.id,`Результати пошуку : 🔍\n+ "${res_message}"'`, option).catch(err =>{  console.log(err)
                 if(err.message == '400: Bad Request: message is too long'){
                     ctx.reply("Відповідь занадто велика! Спробуйте задати питання точніше!"); 
                   
