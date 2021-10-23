@@ -82,12 +82,16 @@ bot.on('text', (ctx) => {
                 "parse_mode": "markdown",
                 disable_notification: true
               };
-    
+              
             bot.telegram.sendMessage(ctx.chat.id,`Результати пошуку : 🔍\n+ "${res_message}"'`, option).catch(err =>{  console.log(err)
                 if(err.message == '400: Bad Request: message is too long'){
                     ctx.reply("Відповідь занадто велика! Спробуйте задати питання точніше!"); 
                   
                 }
+                if(err.message.includes("400: Bad Request: can't parse entities")){
+                  ctx.reply(`Результати пошуку : 🔍\n+ "${res_message}"'`); 
+                
+              }
               });
         }else{
             bot.telegram.sendMessage(ctx.chat.id, "Нажаль нам не вдалось знайти відповідь на ваше запитання 😰", {disable_notification: true});
