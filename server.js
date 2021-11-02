@@ -13,11 +13,11 @@ app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "public")));
 
 const database = mysql.createPool({
-  connectionLimit: 100,
-  host: "localhost",
-  user: "root",
-  database: "answer",
-  password: "root",
+  connectionLimit: 10,
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
 });
 
 function logger(type, text, err) {
