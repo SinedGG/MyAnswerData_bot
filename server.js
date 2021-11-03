@@ -6,6 +6,7 @@ const shortid = require("shortid");
 
 const mysql = require("mysql");
 const jsdom = require("jsdom");
+require("dotenv").config();
 
 var app = express();
 app.use(busboy());
@@ -50,13 +51,13 @@ app.route("/upload").post(function (req, res, next) {
     file.pipe(fstream);
     fstream.on("close", function () {
       console.log("Upload Finished of " + filename);
-      FileToSQL(filename);
-      res.redirect("back"); //where to go next
+      FileToSQL(res,filename);
+      //res.redirect("back"); //where to go next
     });
   });
 });
 
-function FileToSQL(file_name) {
+function FileToSQL(res ,file_name) {
   fs.readFile("./files/" + file_name, "utf8", function (err, data) {
     if (err) {
       logger('File', `Помилка читання файлу ${file_name}`, err);
@@ -102,6 +103,7 @@ function FileToSQL(file_name) {
                 console.log('errors')
             }
             
+            
             if (valuse.length > 0) {
               const db_request =
                 "INSERT main (topic, subtopic, question, rightanswer , answer) VALUES ?";
@@ -110,8 +112,13 @@ function FileToSQL(file_name) {
                   console.log("Eror " + err);
                 } else {
                   logger('Add' , "В базу додано " + valuse.length + " записів");
+                  var out_data = [question.length, question.length - valuse.length ,valuse.length]
+                  res.render("result", { page_title: "Test Table", data: out_data });
                 }
               });
+            }else{
+              var out_data = [question.length, question.length - valuse.length ,valuse.length]
+                  res.render("result", { page_title: "Test Table", data: out_data });
             }
           }
         }
@@ -129,7 +136,11 @@ app.get("/table", (req, res) => {
       res.render("testtable", { page_title: "Test Table", data: rows });
       logger('Request', 'Виконано запит до сайту-таблиці');
     });
-  });
+});
+
+app.get("/result", (req, res) => {
+    res.render("result", { page_title: "Test Table", data: 'test' });
+});
 
 
 app.get("/", (req, res) => {
