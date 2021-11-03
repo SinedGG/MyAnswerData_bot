@@ -100,6 +100,7 @@ function FileToSQL(res ,file_name) {
                     }
                   }
             } catch (error) {
+              res.send("<h2>Error</h2>");
                 console.log('errors')
             }
             
