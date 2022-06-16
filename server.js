@@ -22,22 +22,21 @@ const database = mysql.createPool({
 });
 
 function logger(type, text, err) {
-    var moment = require("moment-timezone");
-    var log_text = `[${moment()
-      .tz("Europe/Kiev")
-      .format("YYYY-MM-DD HH:mm:ss")}] [${type}] - ${text}`;
-    var logtofile = fs.createWriteStream("log/last.txt", {
-      flags: "a",
-    });
-  
-    if (err == undefined) {
-      err = "";
-    }
-    console.log(`${log_text} ${err}`);
-  
-    logtofile.write(`${log_text}  \r\n`);
-  }
+  var moment = require("moment-timezone");
+  var log_text = `[${moment()
+    .tz("Europe/Kiev")
+    .format("YYYY-MM-DD HH:mm:ss")}] [${type}] - ${text}`;
+  var logtofile = fs.createWriteStream("log/last.txt", {
+    flags: "a",
+  });
 
+  if (err == undefined) {
+    err = "";
+  }
+  console.log(`${log_text} ${err}`);
+
+  logtofile.write(`${log_text}  \r\n`);
+}
 
 app.route("/upload").post(function (req, res, next) {
   var fstream;
@@ -51,60 +50,60 @@ app.route("/upload").post(function (req, res, next) {
     file.pipe(fstream);
     fstream.on("close", function () {
       console.log("Upload Finished of " + filename);
-      FileToSQL(res,filename);
+      FileToSQL(res, filename);
       //res.redirect("back"); //where to go next
     });
   });
 });
 
-function FileToSQL(res ,file_name) {
+function FileToSQL(res, file_name) {
   fs.readFile("./files/" + file_name, "utf8", function (err, data) {
     if (err) {
-      logger('File', `Помилка читання файлу ${file_name}`, err);
+      logger("File", `Помилка читання файлу ${file_name}`, err);
     } else {
       const dom = new jsdom.JSDOM(data);
       const jquery = require("jquery")(dom.window);
       const question = dom.window.document.querySelectorAll("div.qtext");
-      const rightanswer =dom.window.document.getElementsByClassName("c1 text correct");
-      const answer = "-";
+      const rightanswer =
+        dom.window.document.querySelectorAll("div.rightanswer");
+      const answer = dom.window.document.querySelectorAll("div.ablock");
 
       var valuse = [];
-      var topic = "SP";
-      var subtopic = "not stable";
+      var topic = "exam";
+      var subtopic = "arkhitektura";
       database.query(
         "select question, rightanswer from main",
         function (err, result) {
           if (err) {
-            logger('DB Error', 'Помилка підключення до БД', err);
+            logger("DB Error", "Помилка підключення до БД", err);
           } else {
             try {
-                for (let i = 0; i < question.length; i++) {
-                    duplicate = 0;
-                    for (let j = 0; j < result.length; j++) {
-                      if (
-                        question[i].textContent == result[j].question &&
-                        rightanswer[i].textContent == result[j].rightanswer
-                      ) {
-                        duplicate = 1;
-                        break;
-                      }
-                    }
-                    if (duplicate == 0) {
-                      valuse.push([
-                        topic,
-                        subtopic,
-                        question[i].textContent,
-                        rightanswer[i].textContent,
-                        answer,
-                      ]);
-                    }
+              for (let i = 0; i < question.length; i++) {
+                duplicate = 0;
+                for (let j = 0; j < result.length; j++) {
+                  if (
+                    question[i].textContent == result[j].question &&
+                    rightanswer[i].textContent == result[j].rightanswer
+                  ) {
+                    duplicate = 1;
+                    break;
                   }
+                }
+                if (duplicate == 0) {
+                  valuse.push([
+                    topic,
+                    subtopic,
+                    question[i].textContent,
+                    rightanswer[i].textContent,
+                    answer,
+                  ]);
+                }
+              }
             } catch (error) {
               res.send("<h2>Error</h2>");
-                console.log('errors')
+              console.log("errors");
             }
-            
-            
+
             if (valuse.length > 0) {
               const db_request =
                 "INSERT main (topic, subtopic, question, rightanswer , answer) VALUES ?";
@@ -112,14 +111,28 @@ function FileToSQL(res ,file_name) {
                 if (err) {
                   console.log("Eror " + err);
                 } else {
-                  logger('Add' , "В базу додано " + valuse.length + " записів");
-                  var out_data = [question.length, question.length - valuse.length ,valuse.length]
-                  res.render("result", { page_title: "Test Table", data: out_data });
+                  logger("Add", "В базу додано " + valuse.length + " записів");
+                  var out_data = [
+                    question.length,
+                    question.length - valuse.length,
+                    valuse.length,
+                  ];
+                  res.render("result", {
+                    page_title: "Test Table",
+                    data: out_data,
+                  });
                 }
               });
-            }else{
-              var out_data = [question.length, question.length - valuse.length ,valuse.length]
-                  res.render("result", { page_title: "Test Table", data: out_data });
+            } else {
+              var out_data = [
+                question.length,
+                question.length - valuse.length,
+                valuse.length,
+              ];
+              res.render("result", {
+                page_title: "Test Table",
+                data: out_data,
+              });
             }
           }
         }
@@ -133,16 +146,15 @@ app.get("/upload", (req, res) => {
 });
 
 app.get("/table", (req, res) => {
-    database.query("SELECT * FROM main", (err, rows) => {
-      res.render("testtable", { page_title: "Test Table", data: rows });
-      logger('Request', 'Виконано запит до сайту-таблиці');
-    });
+  database.query("SELECT * FROM main", (err, rows) => {
+    res.render("testtable", { page_title: "Test Table", data: rows });
+    logger("Request", "Виконано запит до сайту-таблиці");
+  });
 });
 
 app.get("/result", (req, res) => {
-    res.render("result", { page_title: "Test Table", data: 'test' });
+  res.render("result", { page_title: "Test Table", data: "test" });
 });
-
 
 app.get("/", (req, res) => {
   res.sendfile("./html/menu/");
@@ -150,7 +162,6 @@ app.get("/", (req, res) => {
 app.get("/style.css", function (req, res) {
   res.sendFile(__dirname + "/" + "html/menu/style.css");
 });
-
 
 var server = app.listen(process.env.PORT || 8080, function () {
   console.log("Listening on port %d", server.address().port);
