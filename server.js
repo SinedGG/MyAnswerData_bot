@@ -1,19 +1,25 @@
-var express = require("express"); //Express Web Server
-var busboy = require("connect-busboy"); //middleware for form/file upload
-var path = require("path"); //used for file path
-var fs = require("fs-extra"); //File System - for file manipulation
+var express = require("express");
+var path = require("path");
+var fs = require("fs");
 const shortid = require("shortid");
+
+const fileUpload = require("express-fileupload");
 
 const mysql = require("mysql");
 const jsdom = require("jsdom");
 require("dotenv").config();
 
 var app = express();
-app.use(busboy());
 app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "public")));
 
-const database = mysql.createPool({
+app.use(
+  fileUpload({
+    createParentPath: true,
+  })
+);
+
+const db = mysql.createPool({
   connectionLimit: 10,
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -21,122 +27,92 @@ const database = mysql.createPool({
   password: process.env.DB_PASSWORD,
 });
 
-function logger(type, text, err) {
-  var moment = require("moment-timezone");
-  var log_text = `[${moment()
-    .tz("Europe/Kiev")
-    .format("YYYY-MM-DD HH:mm:ss")}] [${type}] - ${text}`;
-  var logtofile = fs.createWriteStream("log/last.txt", {
-    flags: "a",
-  });
-
-  if (err == undefined) {
-    err = "";
+app.post("/upload", async (req, res) => {
+  try {
+    if (!req.files) {
+      res.send({
+        status: false,
+        message: "No file uploaded",
+      });
+    } else {
+      var filename = shortid.generate() + ".html";
+      var file = req.files.fileUploaded;
+      file.mv("./files/" + filename);
+      setTimeout(() => {
+        FileToSQL(res, filename);
+      }, 2500);
+    }
+  } catch (err) {
+    res.status(500).send(err);
   }
-  console.log(`${log_text} ${err}`);
-
-  logtofile.write(`${log_text}  \r\n`);
-}
-
-app.route("/upload").post(function (req, res, next) {
-  var fstream;
-  req.pipe(req.busboy);
-  req.busboy.on("file", function (fieldname, file, filename) {
-    var filename = shortid.generate() + ".html";
-    console.log("Uploading: " + filename);
-
-    //Path where image will be uploaded
-    fstream = fs.createWriteStream(__dirname + "/files/" + filename);
-    file.pipe(fstream);
-    fstream.on("close", function () {
-      console.log("Upload Finished of " + filename);
-      FileToSQL(res, filename);
-      //res.redirect("back"); //where to go next
-    });
-  });
 });
 
 function FileToSQL(res, file_name) {
   fs.readFile("./files/" + file_name, "utf8", function (err, data) {
     if (err) {
-      logger("File", `Помилка читання файлу ${file_name}`, err);
+      console.log(err);
     } else {
-      const dom = new jsdom.JSDOM(data);
-      const jquery = require("jquery")(dom.window);
-      const question = dom.window.document.querySelectorAll("div.qtext");
-      const rightanswer =
-        dom.window.document.querySelectorAll("div.rightanswer");
-      const answer = dom.window.document.querySelectorAll("div.ablock");
+      db.query("select question, rightanswer from main", (err, result) => {
+        if (err) {
+          console.log(err);
+        } else {
+          var valuse = [];
+          var topic = "exam";
+          var subtopic = "IPZ";
+          var question;
+          const dom = new jsdom.JSDOM(data);
+          const block = dom.window.document.getElementsByClassName("content");
+          for (let index = 0; index < block.length - 1; index++) {
+            var duplicate = 0;
+            const temp = new jsdom.JSDOM(block[index].outerHTML);
 
-      var valuse = [];
-      var topic = "exam";
-      var subtopic = "arkhitektura";
-      database.query(
-        "select question, rightanswer from main",
-        function (err, result) {
-          if (err) {
-            logger("DB Error", "Помилка підключення до БД", err);
-          } else {
-            try {
-              for (let i = 0; i < question.length; i++) {
-                duplicate = 0;
-                for (let j = 0; j < result.length; j++) {
-                  if (
-                    question[i].textContent == result[j].question &&
-                    rightanswer[i].textContent == result[j].rightanswer
-                  ) {
-                    duplicate = 1;
-                    break;
-                  }
-                }
-                if (duplicate == 0) {
-                  valuse.push([
-                    topic,
-                    subtopic,
-                    question[i].textContent,
-                    rightanswer[i].textContent,
-                    answer,
-                  ]);
+            question = temp.window.document.getElementsByClassName("qtext");
+            const answer =
+              temp.window.document.getElementsByClassName("ablock");
+            const rightanswer =
+              temp.window.document.getElementsByClassName("rightanswer");
+
+            if (question[0] && rightanswer[0]) {
+              for (let i = 0; i < result.length; i++) {
+                if (
+                  question[0].textContent == result[i].question &&
+                  rightanswer[0].textContent == result[i].rightanswer
+                ) {
+                  duplicate = 1;
+                  break;
                 }
               }
-            } catch (error) {
-              res.send("<h2>Error</h2>");
-              console.log("errors");
-            }
-
-            if (valuse.length > 0) {
-              const db_request =
-                "INSERT main (topic, subtopic, question, rightanswer , answer) VALUES ?";
-              database.query(db_request, [valuse], function (err) {
-                if (err) {
-                  console.log("Eror " + err);
-                } else {
-                  logger("Add", "В базу додано " + valuse.length + " записів");
-                  var out_data = [
-                    question.length,
-                    question.length - valuse.length,
-                    valuse.length,
-                  ];
-                  res.render("result", {
-                    page_title: "Test Table",
-                    data: out_data,
-                  });
-                }
-              });
-            } else {
-              var out_data = [
-                question.length,
-                question.length - valuse.length,
-                valuse.length,
-              ];
-              res.render("result", {
-                page_title: "Test Table",
-                data: out_data,
-              });
+              if (duplicate == 0) {
+                valuse.push([
+                  topic,
+                  subtopic,
+                  question[0].textContent,
+                  rightanswer[0].textContent,
+                  answer[0].textContent,
+                ]);
+              }
             }
           }
+          if (valuse.length > 0) {
+            const db_request =
+              "INSERT main (topic, subtopic, question, rightanswer , answer) VALUES ?";
+            db.query(db_request, [valuse], (err) => {
+              if (err) {
+                console.log(err);
+              }
+            });
+          }
+          var out_data = [
+            block.length - 1,
+            block.length - 1 - valuse.length,
+            valuse.length,
+          ];
+          res.render("result", {
+            page_title: "Test Table",
+            data: out_data,
+          });
         }
-      );
+      });
     }
   });
 }
@@ -146,7 +122,7 @@ app.get("/upload", (req, res) => {
 });
 
 app.get("/table", (req, res) => {
-  database.query("SELECT * FROM main", (err, rows) => {
+  db.query("SELECT * FROM main", (err, rows) => {
     res.render("testtable", { page_title: "Test Table", data: rows });
     logger("Request", "Виконано запит до сайту-таблиці");
   });
